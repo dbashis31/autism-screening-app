@@ -1,0 +1,33 @@
+{
+  "auc_roc": {
+    "audio": 1.0,
+    "video": 1.0,
+    "questionnaire": 1.0,
+    "text": 1.0,
+    "global": 1.0,
+    "macro": 1.0
+  },
+  "calibration": {
+    "ece_global": 0.3635103793938955,
+    "ece_audio": 0.4307346373796463,
+    "ece_video": 0.43564747154712674,
+    "ece_questionnaire": 0.3277705482641856,
+    "ece_text": 0.11811030368010203
+  },
+  "confusion_matrix": {
+    "sensitivity": 1.0,
+    "specificity": 1.0,
+    "ppv": 1.0,
+    "npv": 1.0,
+    "f1": 1.0,
+    "accuracy": 1.0,
+    "tp": 52,
+    "fp": 0,
+    "fn": 0,
+    "tn": 98
+  },
+  "abstention_tradeoff": {
+    "op_abstention_rate": 0.12,
+    "op_accuracy": 1.0
+  }
+}

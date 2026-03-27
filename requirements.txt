@@ -1,0 +1,17 @@
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+sqlalchemy>=2.0.30
+pydantic>=2.7.1
+python-multipart>=0.0.9
+# LLM + agentic orchestration
+anthropic>=0.40.0
+langgraph>=0.2.0
+# ML dependencies
+torch>=2.2.0
+torchvision>=0.17.0
+scikit-learn>=1.4.0
+matplotlib>=3.8.0
+numpy>=1.26.0
+scipy>=1.12.0
+Pillow>=10.2.0
+tqdm>=4.66.0
