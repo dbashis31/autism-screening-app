@@ -1,4 +1,4 @@
-# ASD Screening MVP — MLHC 2026
+# ASD Screening MVP
 
 A governance-compliant web application for longitudinal autism screening support.
 
