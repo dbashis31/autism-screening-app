@@ -67,7 +67,7 @@ class MLStatus(BaseModel):
     checkpoint_size_mb: Optional[float] = None
     temperature: Optional[float] = None
     training_metadata: Optional[dict] = None
-    model_config: Optional[dict] = None
+    ml_model_config: Optional[dict] = None
     training_state: dict
     figures: list[str]
     paper_metrics: Optional[dict] = None
@@ -222,7 +222,7 @@ def get_ml_status(
         checkpoint_size_mb=ckpt_size_mb,
         temperature=temperature,
         training_metadata=training_metadata,
-        model_config=model_cfg,
+        ml_model_config=model_cfg,
         training_state=state_copy,
         figures=figures,
         paper_metrics=paper_metrics,

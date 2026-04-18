@@ -53,7 +53,7 @@ export default function ImagePredict() {
 
         {/* Header */}
         <div style={s.headerWrap}>
-          <div style={s.badge}>🧠 ResNet-50 · AUC 0.9585 · Acc 89%</div>
+          <div style={s.badge}>🧠 CNN-BiLSTM Multimodal · AUC 1.00 · Visual Pathway</div>
           <h1 style={s.h1}>Autism Detection — Image Analysis</h1>
           <p style={s.sub}>
             Upload a child's facial image · Model returns prediction + Grad-CAM attention map
@@ -138,7 +138,7 @@ export default function ImagePredict() {
               <div style={s.emptyResult}>
                 <div style={s.spinner} />
                 <p style={{ color: '#64748b', fontSize: 14, marginTop: 12 }}>
-                  Running ResNet-50 + Grad-CAM…
+                  Running CNN-BiLSTM + Grad-CAM…
                 </p>
               </div>
             )}
@@ -209,11 +209,11 @@ export default function ImagePredict() {
 
             <div style={s.metaGrid}>
               {[
-                ['Model',    'ResNet-50 (Transfer Learning)'],
+                ['Model',    'CNN-BiLSTM (ResNet-18 Visual)'],
                 ['Device',   result.device],
-                ['Val Acc',  '91.0%'],
-                ['Test Acc', '89.0%'],
-                ['AUC',      '0.9585'],
+                ['Val AUC',  '1.00'],
+                ['Heads',    '5 (A/V/Q/T/G)'],
+                ['Training', 'Synthetic'],
                 ['Classes',  'Autistic / Non-Autistic'],
               ].map(([k, v]) => (
                 <div key={k} style={s.metaTile}>

@@ -32,7 +32,15 @@ export default defineConfig({
       },
 
       '/dev':     { target: 'http://localhost:8000', changeOrigin: true },
-      '/predict': { target: 'http://localhost:8000', changeOrigin: true },
+      '/predict': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        bypass(req) {
+          if (req.url === '/predict' || req.url === '/predict/') {
+            return '/index.html'
+          }
+        },
+      },
       '/ml':      { target: 'http://localhost:8000', changeOrigin: true },
     },
   },

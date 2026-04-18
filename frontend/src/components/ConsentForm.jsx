@@ -24,7 +24,7 @@ export default function ConsentForm({ onDone }) {
     if (!childId.trim()) { setError('Child ID is required'); return }
     setLoading(true); setError(null)
     try {
-      const role = sessionStorage.getItem('role') || 'caregiver'
+      const role = localStorage.getItem('role') || 'caregiver'
       const sessRes = await api.post('/sessions', { child_id: childId, role })
       const sessionId = sessRes.data.session_id
       await api.post(`/sessions/${sessionId}/consent`, {

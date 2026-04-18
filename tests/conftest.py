@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from backend.database import Base
 from backend.dependencies import get_db
@@ -20,6 +21,7 @@ TEST_DB_URL = "sqlite:///:memory:"
 engine = create_engine(
     TEST_DB_URL,
     connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -44,25 +46,51 @@ def client():
         yield c
 
 
+class _RoleClient:
+    """Thin wrapper that injects X-Role on every request without mutating the shared TestClient."""
+    def __init__(self, client, role):
+        self._client = client
+        self._role = role
+
+    def _headers(self, extra=None):
+        h = {"X-Role": self._role}
+        if extra:
+            h.update(extra)
+        return h
+
+    def get(self, url, **kw):
+        kw.setdefault("headers", {}).update(self._headers())
+        return self._client.get(url, **kw)
+
+    def post(self, url, **kw):
+        kw.setdefault("headers", {}).update(self._headers())
+        return self._client.post(url, **kw)
+
+    def put(self, url, **kw):
+        kw.setdefault("headers", {}).update(self._headers())
+        return self._client.put(url, **kw)
+
+    def delete(self, url, **kw):
+        kw.setdefault("headers", {}).update(self._headers())
+        return self._client.delete(url, **kw)
+
+
 @pytest.fixture
 def caregiver_client(client):
     """Client that sends X-Role: caregiver on every request."""
-    client.headers.update({"X-Role": "caregiver"})
-    return client
+    return _RoleClient(client, "caregiver")
 
 
 @pytest.fixture
 def clinician_client(client):
     """Client that sends X-Role: clinician on every request."""
-    client.headers.update({"X-Role": "clinician"})
-    return client
+    return _RoleClient(client, "clinician")
 
 
 @pytest.fixture
 def admin_client(client):
     """Client that sends X-Role: admin on every request."""
-    client.headers.update({"X-Role": "admin"})
-    return client
+    return _RoleClient(client, "admin")
 
 
 # ── Common helpers ────────────────────────────────────────────────────────────
