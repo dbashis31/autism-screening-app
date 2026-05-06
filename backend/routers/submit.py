@@ -48,21 +48,28 @@ def submit_session(
     # Build confidence scores — real ML model, or mock fallback if no checkpoint
     confidence_scores = payload.confidence_scores or _get_confidence(payload.modalities)
 
+    # Build submitted_data stub from modality list
+    submitted_data = {m: {"present": True} for m in payload.modalities}
+
     # Build scenario dict matching agent expectations
     scenario = {
         "session_id": session_id,
         "child_id": s.child_id,
+        "user_id": f"user-{x_role}-{session_id[:8]}",
         "role": x_role,
         "model_id": s.model_id,
         "requested_operation": "inference",
+        "requested_data_types": ["screening_results"],
         "consent_record": consent_record,
         "modalities": payload.modalities,
+        "submitted_data": submitted_data,
         "audio_snr_db": payload.audio_snr_db,
         "child_age_months": payload.child_age_months,
         "report_type": payload.report_type,
         "cross_modal_conflict": payload.cross_modal_conflict,
         "force_abstain": payload.force_abstain,
         "confidence_scores": confidence_scores,
+        "prediction": {"risk_level": "pending", "score": 0.0},
         "consent_scope_change": payload.consent_scope_change,
     }
 
