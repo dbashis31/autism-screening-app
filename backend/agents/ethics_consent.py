@@ -5,7 +5,17 @@ Responsibility: Gate ALL downstream processing on valid caregiver consent.
 This is the first and hardest gate — if consent is absent, expired, or
 out-of-scope the pipeline stops immediately.
 
-LLM role: After the deterministic gate passes, Claude reviews the consent
+Steps (matching Algorithm 1 flowchart):
+  1. Verify user identity and role U
+  2. Retrieve consent record C for submitted data
+  3. Gate: C missing or expired? → DENY
+  4. Gate: A permitted under C? → DENY
+  5. Gate: Protected data by authorized role? → DENY
+  6. Mid-session scope narrowing (if applicable)
+  7. LLM nuanced compliance review
+  8. Record consent decision in audit log → PASS
+
+LLM role: After the deterministic gates pass, Claude reviews the consent
 record for nuanced compliance concerns and produces a brief audit summary
 that is stored in the audit log and surfaced in the clinician report.
 """
@@ -13,6 +23,7 @@ that is stored in the audit log and surfaced in the clinician report.
 import datetime
 import time
 
+from .constants import ROLE_DATA_ACCESS, VALID_ROLES
 from .llm import call_llm_json
 from .state import PipelineState
 
@@ -29,6 +40,24 @@ def _consent_expired(record: dict) -> bool:
         return True  # malformed date → treat as expired
 
 
+def _verify_identity(scenario: dict) -> tuple[bool, str | None]:
+    """Step 1: Verify user identity and role U."""
+    role = scenario.get("role")
+    user_id = scenario.get("user_id")
+    if not user_id:
+        return False, "missing_user_id"
+    if not role or role not in VALID_ROLES:
+        return False, "invalid_or_missing_role"
+    return True, None
+
+
+def _check_role_data_access(role: str, requested_data: set[str]) -> tuple[bool, list[str]]:
+    """Step 5: Verify protected data is accessed only by authorized role."""
+    permitted = ROLE_DATA_ACCESS.get(role, set())
+    unauthorized = requested_data - permitted
+    return len(unauthorized) == 0, sorted(unauthorized)
+
+
 # ── LangGraph node ─────────────────────────────────────────────────────────────
 
 def ethics_consent_node(state: PipelineState) -> PipelineState:
@@ -38,7 +67,31 @@ def ethics_consent_node(state: PipelineState) -> PipelineState:
     sid      = scenario["session_id"]
     consent  = scenario.get("consent_record")
 
-    # ── 1. Hard gate: consent absent or expired ────────────────────────────────
+    # ── Step 1: Verify user identity and role ─────────────────────────────────
+    identity_valid, identity_reason = _verify_identity(scenario)
+    if not identity_valid:
+        latency = (time.perf_counter() - t0) * 1000
+        log_fn("ethics_consent", sid, "BLOCK", "identity_verification_failed",
+               {"reason": identity_reason})
+        ec_out = {
+            "status": "BLOCKED",
+            "reason": identity_reason,
+            "latency_ms": latency,
+            "disabled_modalities": [],
+            "llm_review": None,
+        }
+        return {
+            **state,
+            "blocked": True,
+            "block_reason": identity_reason,
+            "pipeline_status": "blocked",
+            "consent_latency_ms": latency,
+            "agent_outputs": {**state["agent_outputs"], "ethics_consent": ec_out},
+        }
+
+    role = scenario["role"]
+
+    # ── Step 2 + Gate: consent absent or expired ──────────────────────────────
     if consent is None or _consent_expired(consent):
         latency = (time.perf_counter() - t0) * 1000
         log_fn("ethics_consent", sid, "BLOCK", "consent_absent_or_expired")
@@ -58,7 +111,7 @@ def ethics_consent_node(state: PipelineState) -> PipelineState:
             "agent_outputs": {**state["agent_outputs"], "ethics_consent": ec_out},
         }
 
-    # ── 2. Hard gate: requested operation not in permitted scope ───────────────
+    # ── Gate: requested operation not in permitted scope ──────────────────────
     requested_op  = scenario.get("requested_operation", "inference")
     permitted_ops = consent.get("permitted_ops", [])
     if requested_op not in permitted_ops:
@@ -81,7 +134,31 @@ def ethics_consent_node(state: PipelineState) -> PipelineState:
             "agent_outputs": {**state["agent_outputs"], "ethics_consent": ec_out},
         }
 
-    # ── 3. Mid-session scope narrowing ────────────────────────────────────────
+    # ── Step 5: Protected data by authorized role? ────────────────────────────
+    requested_data = set(scenario.get("requested_data_types", ["screening_results"]))
+    data_ok, unauthorized = _check_role_data_access(role, requested_data)
+    if not data_ok:
+        latency = (time.perf_counter() - t0) * 1000
+        log_fn("ethics_consent", sid, "BLOCK", "role_data_access_denied",
+               {"role": role, "unauthorized_data": unauthorized})
+        ec_out = {
+            "status": "BLOCKED",
+            "reason": "role_data_access_denied",
+            "latency_ms": latency,
+            "disabled_modalities": [],
+            "llm_review": None,
+            "unauthorized_data": unauthorized,
+        }
+        return {
+            **state,
+            "blocked": True,
+            "block_reason": "role_data_access_denied",
+            "pipeline_status": "blocked",
+            "consent_latency_ms": latency,
+            "agent_outputs": {**state["agent_outputs"], "ethics_consent": ec_out},
+        }
+
+    # ── Mid-session scope narrowing ───────────────────────────────────────────
     scope_change = scenario.get("consent_scope_change")
     disabled: list[str] = []
     if scope_change:
@@ -89,7 +166,7 @@ def ethics_consent_node(state: PipelineState) -> PipelineState:
         log_fn("ethics_consent", sid, "SCOPE_CHANGE", "mid_session_consent_update",
                {"removed_modalities": disabled})
 
-    # ── 4. LLM: nuanced consent compliance review ──────────────────────────────
+    # ── LLM: nuanced consent compliance review ────────────────────────────────
     llm_result = call_llm_json(
         system=(
             "You are a clinical ethics governance agent for a paediatric autism screening AI. "
@@ -108,6 +185,8 @@ def ethics_consent_node(state: PipelineState) -> PipelineState:
             f"expiry_date: {consent.get('expiry_date')}\n"
             f"requested_operation: {requested_op}\n"
             f"scope_change: {scope_change}\n"
+            f"role: {role}\n"
+            f"requested_data_types: {sorted(requested_data)}\n"
             f"today: {datetime.date.today().isoformat()}"
         ),
         max_tokens=256,

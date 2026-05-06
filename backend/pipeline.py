@@ -10,10 +10,11 @@ Graph topology
 ethics_consent
   │  BLOCKED → END
   └─ ALLOWED → bias_applicability
-                 └─ model_selection
-                      └─ confidence_abstention   (writes abstention to DB here)
-                           └─ explanation_reporting
-                                └─ END
+                 │  ABSTAIN → explanation_reporting → END
+                 └─ PASS → model_selection
+                             │  REJECTED → confidence_abstention → explanation_reporting → END
+                             └─ APPROVED → confidence_abstention
+                                             └─ explanation_reporting → END
 
 Public API
 ──────────
@@ -44,6 +45,20 @@ def _route_after_ethics(
     return "__end__" if state["blocked"] else "bias_applicability"
 
 
+def _route_after_bias(
+    state: PipelineState,
+) -> Literal["model_selection", "explanation_reporting"]:
+    """If bias agent triggered ABSTAIN, skip to reporting."""
+    return "explanation_reporting" if state["bias_abstain"] else "model_selection"
+
+
+def _route_after_model(
+    state: PipelineState,
+) -> Literal["confidence_abstention", "__end__"]:
+    """If model was rejected, short-circuit to END (DENY)."""
+    return "__end__" if state["blocked"] else "confidence_abstention"
+
+
 # ── Graph compiler ─────────────────────────────────────────────────────────────
 
 def _build_graph():
@@ -57,13 +72,19 @@ def _build_graph():
 
     g.set_entry_point("ethics_consent")
 
-    # Ethics → conditional branch
+    # Ethics → conditional: BLOCKED → END, ALLOWED → bias
     g.add_conditional_edges("ethics_consent", _route_after_ethics)
 
-    # Linear chain for stages 2-5
-    g.add_edge("bias_applicability",    "model_selection")
-    g.add_edge("model_selection",       "confidence_abstention")
+    # Bias → conditional: ABSTAIN → reporting, PASS → model_selection
+    g.add_conditional_edges("bias_applicability", _route_after_bias)
+
+    # Model selection → conditional: BLOCKED → END, OK → confidence
+    g.add_conditional_edges("model_selection", _route_after_model)
+
+    # Confidence → always → reporting
     g.add_edge("confidence_abstention", "explanation_reporting")
+
+    # Reporting → END
     g.add_edge("explanation_reporting", END)
 
     return g.compile()
@@ -117,6 +138,7 @@ def run_pipeline(scenario: dict, db: DBSession) -> dict:
         # Stage outputs
         "enabled_modalities":     [],
         "applicability_warnings": [],
+        "bias_abstain":           False,
         "model_rejected":         False,
         "abstaining":             False,
         "abstention_reason":      None,

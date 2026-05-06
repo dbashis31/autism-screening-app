@@ -27,6 +27,7 @@ class PipelineState(TypedDict):
     # ── Per-stage outputs ─────────────────────────────────────────────────────
     enabled_modalities: list[str]
     applicability_warnings: list[str]
+    bias_abstain: bool                   # True if bias agent triggers ABSTAIN
     model_rejected: bool
     abstaining: bool
     abstention_reason: str | None
