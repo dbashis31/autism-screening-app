@@ -1,9 +1,18 @@
 # ASD Governance Screening Platform
 
 A governance-compliant web application for longitudinal autism screening support,
-built for the MLHC 2026 paper. The platform implements a 5-agent LangGraph
+built for the  paper. The platform implements a 5-agent LangGraph
 pipeline with LLM-augmented reasoning (Claude) and deterministic rule-based
 fallbacks for every governance decision.
+
+This repository contains a research-oriented proof-of-concept prototype for governance-aware autism screening support. The system is intended for academic research, demonstration, and controlled technical evaluation only.
+
+This application is not a production clinical system, is not a diagnostic tool, and has not been clinically validated. It should not be used to diagnose Autism Spectrum Disorder or to make real-world clinical, educational, therapeutic, eligibility, or service decisions.
+
+The prototype demonstrates how a multi-agent governance pipeline can support consent checking, bias and applicability review, model selection, confidence-based abstention, explanation generation, audit logging, and human-in-the-loop escalation. Any real-world use would require clinician review, institutional approval, privacy and security review, bias testing, and validation with appropriate clinical and demographic data.
+
+AI-assisted coding tools may have been used to support implementation tasks such as scaffolding, debugging, refactoring, test generation, and documentation support. The system architecture, governance model, workflow design, validation approach, research framing, and final review remain the responsibility of the project authors.
+
 
 ## Quick Start
 
